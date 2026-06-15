@@ -1,245 +1,269 @@
-# GitHub Repository RAG - Learning Notes
+# GitHub Repository RAG Assistant
 
-## Objective
+## Overview
 
-Build a Retrieval-Augmented Generation (RAG) chatbot that can understand a GitHub repository and answer questions about its codebase. The user uploads a repository as a ZIP file, and the system indexes the code for semantic retrieval.
+GitHub Repository RAG Assistant is a Retrieval-Augmented Generation (RAG) application that allows users to upload a GitHub repository as a ZIP file and interact with it through natural language questions.
 
-# Overall Pipeline
+Instead of manually browsing source files, users can ask questions such as:
 
-User uploads GitHub ZIP
-          ↓
-Save ZIP temporarily
-          ↓
-Validate ZIP file
-          ↓
-Extract repository
-          ↓
-Filter useful source files
-          ↓
-Store filtered files in uploads/
-          ↓
-Load files into document objects
-          ↓
-Chunk the documents
-          ↓
-Generate embeddings
-          ↓
-Store embeddings in FAISS
-          ↓
-User asks question
-          ↓
-Embed question
-          ↓
-Retrieve relevant chunks
-          ↓
-Pass chunks + question to LLM
-          ↓
-Generate answer
+* *"How is the YouTube URL validated?"*
+* *"What is the workflow for generating summaries?"*
+* *"How are transcripts retrieved?"*
 
-# File-by-File Logic
-
-## 1. `repo_parsing.py`
-
-### Purpose
-This file handles the ingestion of the uploaded GitHub repository.
-
-### Workflow
-1. Receive ZIP file from FastAPI endpoint.
-2. Save the uploaded file into the `temp/` directory.
-3. Verify that the uploaded file is a valid ZIP archive.
-4. Extract the ZIP contents.
-5. Recursively traverse the extracted repository.
-6. Ignore unnecessary folders:
-   - `.git`
-   - `node_modules`
-   - `venv`
-   - `__pycache__`
-   - `dist`
-   - etc.
-7. Copy only useful files to the `uploads/` directory.
-   - `.py`
-   - `.js`
-   - `.ts`
-   - `.java`
-   - `.md`
-   - `.txt`
-   - etc.
-8. Return the repository name and list of indexed files.
-
-### Why use `temp/`?
-`temp/` acts as a temporary workspace for ZIP extraction. It can later be cleaned up after processing to save storage.
-
-### Why use `uploads/`?
-`uploads/` stores only the filtered files that are actually useful for the RAG pipeline. These become the source of truth for later indexing.
-
-## 2. `document_loader.py`
-
-### Purpose
-Convert the repository files into structured document objects.
-
-### Input
-A repository folder inside `uploads/`.
-
-### Process
-- Recursively visit every file.
-- Open each file.
-- Read its entire content.
-- Create a document dictionary containing:
-  - file content
-  - metadata
-
-Example:
-
-```python
-{
-    "content": "...file text...",
-    "metadata": {
-        "file_name": "main.py",
-        "relative_path": "main.py",
-        "extension": ".py"
-    }
-}
-```
-
-### Why create document objects?
-This provides a standard representation of data before chunking and embedding. Later pipeline stages work with documents instead of raw files.
+The system semantically searches the repository codebase, retrieves the most relevant code snippets, and uses a Large Language Model (LLM) to generate context-aware answers grounded only in the uploaded repository.
 
 ---
 
-## 3. `chunker.py`
+## Problem Statement
 
-### Purpose
-Split large documents into smaller pieces that can be embedded and retrieved efficiently.
+Understanding unfamiliar codebases can be time-consuming, especially for large projects. Developers often spend significant effort locating relevant files, reading implementation details, and tracing application workflows.
 
-### Why chunk documents?
+Traditional keyword search is limited because it relies on exact matches and does not understand the semantic meaning of a question.
 
-Large files often contain multiple unrelated concepts. Creating one embedding for an entire file would reduce retrieval accuracy.
-
-Example:
-- `main.py` may contain:
-  - authentication
-  - database logic
-  - API routes
-  - utility functions
-
-Splitting it into chunks allows retrieval to focus on only the relevant section.
-
-### Chunk Size
-
-`chunk_size` defines the maximum amount of text placed into a single chunk.
-
-Example:
-- chunk_size = 300
-- A file with 900 characters becomes approximately 3 chunks.
-
-### Chunk Overlap
-
-`chunk_overlap` determines how much text is shared between consecutive chunks.
-
-Example:
-- chunk_size = 300
-- chunk_overlap = 50
-
-```
-Chunk 0 : characters 0   → 299
-Chunk 1 : characters 250 → 549
-Chunk 2 : characters 500 → 799
-```
-
-The overlapping 50 characters help preserve context across chunk boundaries.
-
-### Why overlap is important
-
-Without overlap, important code or sentences may be split exactly between two chunks, making retrieval less accurate.
-
-Overlap ensures that neighboring chunks share context.
-
-### Chunk Metadata
-
-Each chunk inherits the metadata of its parent document and adds a `chunk_id`.
-
-Example:
-
-```python
-{
-    "content": "...chunk text...",
-    "metadata": {
-        "file_name": "main.py",
-        "relative_path": "main.py",
-        "extension": ".py",
-        "chunk_id": 2
-    }
-}
-```
-
-This allows the system to identify exactly where retrieved information came from.
+This project addresses that challenge by applying Retrieval-Augmented Generation (RAG) to source code repositories, enabling semantic code search and repository-aware question answering.
 
 ---
 
-# Current Progress
+## Solution
 
-## Completed
-- [x] FastAPI project setup
-- [x] ZIP upload endpoint
-- [x] ZIP validation
-- [x] Repository extraction
-- [x] Recursive file traversal
-- [x] Ignore unnecessary folders
-- [x] Filter relevant code and documentation files
-- [x] Store filtered files in `uploads/`
-- [x] Load repository files as document objects
-- [x] Chunk documents with overlap
-- [x] Preserve metadata for every chunk
+The application processes an uploaded GitHub repository in the following stages:
 
-## Next Steps
-- [ ] Understand embeddings
-- [ ] Generate embeddings using Sentence Transformers
-- [ ] Store vectors and metadata in FAISS
-- [ ] Build retrieval pipeline
-- [ ] Connect retrieval results to an LLM
-- [ ] Create chat endpoint
+1. **Repository Upload**
+
+   * Accepts a repository ZIP file through a FastAPI endpoint.
+   * Validates and extracts the archive.
+
+2. **Repository Parsing**
+
+   * Recursively traverses the extracted project.
+   * Ignores unnecessary folders (`.git`, `venv`, `node_modules`, etc.).
+   * Retains only relevant source code and documentation files.
+
+3. **Document Loading**
+
+   * Reads each file's content.
+   * Attaches metadata such as file name, relative path, extension, and chunk identifier.
+
+4. **Chunking**
+
+   * Splits large files into overlapping text chunks.
+   * Preserves contextual continuity for better retrieval.
+
+5. **Embedding Generation**
+
+   * Converts chunks into dense vector embeddings using a Sentence Transformer model.
+
+6. **Vector Database Storage**
+
+   * Normalizes embeddings and stores them in a FAISS vector index using cosine similarity (Inner Product with L2 normalization).
+   * Stores corresponding chunk metadata separately for retrieval.
+
+7. **Question Answering**
+
+   * Converts the user question into an embedding.
+   * Retrieves the top-k semantically similar chunks using FAISS.
+   * Filters low-confidence results using a similarity threshold.
+   * Builds a context prompt from the retrieved chunks.
+   * Sends the context and question to an LLM (Groq-hosted Llama model).
+   * Returns a grounded answer along with the source files used.
 
 ---
 
-# Key Concepts Learned
+## System Architecture
 
-## What is a Document?
-A structured representation of one source file containing:
-- file content
-- metadata
-
-## What is a Chunk?
-A smaller piece of a document created to improve retrieval accuracy.
-
-## What is Chunk Size?
-The maximum amount of text stored in one chunk.
-
-## What is Chunk Overlap?
-A small amount of shared text between adjacent chunks that preserves context.
-
-## Why preserve metadata?
-Metadata allows retrieved chunks to be traced back to their original source file.
+```text
+User Uploads Repository (.zip)
+            │
+            ▼
+    Extract & Filter Files
+            │
+            ▼
+      Load Documents
+            │
+            ▼
+    Chunk Documents (800 chars, overlap)
+            │
+            ▼
+ Generate Vector Embeddings
+            │
+            ▼
+ Store Embeddings + Metadata
+    (FAISS + Pickle Storage)
+────────────────────────────────────
+         User Question
+            │
+            ▼
+   Generate Query Embedding
+            │
+            ▼
+    FAISS Semantic Retrieval
+            │
+            ▼
+ Retrieve Top-k Relevant Chunks
+            │
+            ▼
+      Build Context Prompt
+            │
+            ▼
+      Groq (Llama 3.x LLM)
+            │
+            ▼
+    Repository-Grounded Answer
+            │
+            ▼
+ Return Answer + Source Metadata
+```
 
 ---
 
-# Important Insight
+## Tech Stack
 
-The RAG pipeline does not work directly on the original repository files.
+| Component        | Technology            |
+| ---------------- | --------------------- |
+| Backend API      | FastAPI               |
+| Language         | Python                |
+| Embedding Model  | Sentence Transformers |
+| Vector Database  | FAISS                 |
+| LLM              | Groq (Llama 3.x)      |
+| Metadata Storage | Pickle                |
+| Version Control  | Git & GitHub          |
+
+---
+
+## Features
+
+* Upload GitHub repositories as ZIP archives.
+* Recursive repository parsing and file filtering.
+* Automatic source code chunking with overlap.
+* Semantic code search using vector embeddings.
+* Retrieval-Augmented Generation (RAG) pipeline.
+* Repository-grounded answers with source attribution.
+* Similarity threshold filtering to reduce hallucinations.
+* Modular FastAPI backend for easy extension.
+
+---
+
+## Project Structure
+
+```text
+git_repo_rag/
+│
+├── main.py
+├── routes/
+│   ├── repo_extract.py
+│   └── repo_chat.py
+│
+├── utils/
+│   ├── repo_parsing.py
+│   ├── document_loader.py
+│   ├── chunker.py
+│   ├── embedding.py
+│   ├── vector_store.py
+│   ├── retriever.py
+│   ├── context_builder.py
+│   └── llm.py
+│
+├── uploads/
+├── temp/
+├── vector_store/
+├── .env
+├── .gitignore
+└── README.md
+```
+
+---
+
+## Running the Project
+
+### 1. Clone the repository
+
+```bash
+git clone <repository-url>
+cd git_repo_rag
+```
+
+### 2. Create a virtual environment
+
+```bash
+python -m venv venv
+```
+
+### 3. Activate the environment
+
+**Windows**
+
+```bash
+venv\Scripts\activate
+```
+
+**Linux/macOS**
+
+```bash
+source venv/bin/activate
+```
+
+### 4. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 5. Configure environment variables
+
+Create a `.env` file:
+
+```text
+GROQ_API_KEY=your_groq_api_key
+```
+
+### 6. Run the application
+
+```bash
+uvicorn main:app --reload
+```
+
+Open Swagger UI:
 
 ```
-Repository
-    ↓
-Documents
-    ↓
-Chunks
-    ↓
-Embeddings
-    ↓
-Vector Database
-    ↓
-Semantic Retrieval
-    ↓
-LLM Answer Generation
+http://127.0.0.1:8000/docs
 ```
 
-Each stage transforms the data into a format that is more suitable for the next stage.
+---
+
+## Example Workflow
+
+1. Upload a GitHub repository ZIP file.
+2. The system extracts and indexes the repository.
+3. Ask a question, for example:
+
+```
+How is the YouTube URL validated?
+```
+
+4. The application retrieves relevant code snippets and generates an answer using the LLM.
+5. The response includes both the answer and the source files used for generation.
+
+---
+
+## Future Enhancements
+
+* Direct GitHub repository URL ingestion.
+* Multi-repository indexing and querying.
+* Repository visualization and dependency graphs.
+* Conversation memory for follow-up questions.
+* Persistent vector database using ChromaDB or PostgreSQL with pgvector.
+* Frontend interface for repository upload and chat.
+
+---
+
+## Learning Outcomes
+
+This project was built to explore and understand the complete Retrieval-Augmented Generation (RAG) pipeline, including:
+
+* Document ingestion and preprocessing.
+* Text chunking strategies.
+* Embedding generation.
+* Vector databases and similarity search.
+* Retrieval evaluation using similarity thresholds.
+* Prompt engineering for grounded LLM responses.
+* Integration of FastAPI, FAISS, Sentence Transformers, and Groq-hosted LLMs.
