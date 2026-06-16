@@ -168,7 +168,7 @@ git_repo_rag/
 ├── vector_store/
 ├── .env
 ├── .gitignore
-└── README.md
+└── rag_learning.md
 ```
 
 ---
@@ -225,7 +225,7 @@ uvicorn main:app --reload
 Open Swagger UI:
 
 ```
-http://127.0.0.1:8000/docs
+localhost:8000/docs
 ```
 
 ---
