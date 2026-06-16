@@ -114,7 +114,7 @@ async def repo_process(zip_file: UploadFile):
     # Save embeddings and chunk metadata to vector store
     save_to_vector_store(repo_name, chunks, embeddings)
 
-    # Keep temp files for now (helpful for debugging)
+    # removing temp  
     os.remove(zip_path)
     shutil.rmtree(extract_path)
 
