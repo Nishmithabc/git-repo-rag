@@ -1,0 +1,21 @@
+#virtual env and .env file
+venv/
+.env
+
+# Ignore node modules and build files for the frontend
+rag-frontend/node_modules/
+rag-frontend/build/
+
+# Ignore Python bytecode files
+__pycache__/
+*.pyc
+
+# Ignore IDE specific files
+.vscode/
+.idea/
+
+#ignore folders 
+vector_store/
+uploads/
+temp/
+

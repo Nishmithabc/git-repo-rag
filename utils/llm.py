@@ -1,8 +1,12 @@
 from groq import Groq
+from dotenv import load_dotenv
 import os
 
+load_dotenv()
+api_key = os.getenv("API_KEY")
+
 client = Groq(
-    api_key=os.getenv("API_KEY")
+    api_key=api_key
 )
 
 def generate_answer(question: str, context: str):
