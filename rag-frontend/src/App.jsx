@@ -13,6 +13,7 @@ function App() {
   const [uploading, setUploading] = useState(false);
   const [querying, setQuerying] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [summary, setSummary] = useState("");
 
   useEffect(() => {
     const storedRepo = localStorage.getItem("repo_name");
@@ -40,8 +41,10 @@ function App() {
       );
 
       const repository = response.data.repository;
+      const repositorySummary = response.data.summary;
 
       setRepoName(repository);
+      setSummary(repositorySummary);
       localStorage.setItem("repo_name", repository);
 
       alert("Repository uploaded successfully.");
@@ -96,6 +99,7 @@ function App() {
       setRepoName("");
       setQuestion("");
       setAnswer("");
+      setSummary("");
       setFile(null);
 
       alert("Repository removed successfully.");
@@ -208,6 +212,16 @@ function App() {
   </div>
 
 </div>
+
+{summary && (
+  <div className="card">
+    <h2>Repository Summary</h2>
+
+    <div className="summary-box">
+      {summary}
+    </div>
+  </div>
+)}
 
 <div className="card query-card">
   <h2>Ask Questions</h2>

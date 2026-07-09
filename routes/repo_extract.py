@@ -9,6 +9,7 @@ async def upload_repository(zip_file: UploadFile = File(...)):
         return {
             "message": "Repository processed successfully.",
             "repository": result["repo_name"],
+            "summary": result["summary"],
             "files_indexed": len(result["files"]),
             "files": result["files"]
         }

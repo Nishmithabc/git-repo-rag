@@ -9,6 +9,7 @@ from utils.document_loader import load_repository
 from utils.chunker import chunk_documents
 from utils.embedder import generate_embeddings
 from utils.vector_store import save_to_vector_store
+from utils.summary import generate_repository_summary
 
 TEMP_DIR = Path("temp")
 UPLOAD_DIR = Path("uploads")
@@ -108,6 +109,9 @@ async def repo_process(zip_file: UploadFile):
 
     chunks = chunk_documents(documents)
 
+    #summarize the number of chunks generated
+    summary = generate_repository_summary(chunks)
+
     # Generate embeddings for the chunks
     embeddings = generate_embeddings(chunks)
 
@@ -123,5 +127,6 @@ async def repo_process(zip_file: UploadFile):
         "files": indexed_files,
         "documents": documents,
         "chunks": chunks,
+        "summary": summary,
         "embeddings": embeddings.tolist()
     }

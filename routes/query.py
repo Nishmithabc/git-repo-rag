@@ -10,7 +10,7 @@ class QueryRequest(BaseModel):
 
 router=APIRouter()
 
-SIMIARITY_THRESHOLD = 0.35
+SIMIARITY_THRESHOLD = 0.15
 
 @router.post('/query')
 async def query_repository(request: QueryRequest):
