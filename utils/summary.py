@@ -1,6 +1,31 @@
 from utils.llm import client
 import json
 
+def _condense_chunks(chunks, char_budget=10000):
+    """
+    Reduces chunk content to fit within a safe token budget.
+    Strategy: if chunks already fit, use them as-is.
+    Otherwise, do a cheap per-file/per-chunk truncation pass
+    so every part of the repo is still represented, just shorter.
+    """
+    full_context = "\n\n".join(chunk["content"] for chunk in chunks)
+
+    # Roughly 4 chars/token — keep this comfortably under the TPM limit,
+    # leaving headroom for the prompt template text + model output.
+    if len(full_context) <= char_budget:
+        return full_context
+
+    # Repo is too big to fit raw — take a proportional slice from each chunk
+    # instead of just cutting off the tail, so every file gets some representation.
+    per_chunk_budget = max(char_budget // len(chunks), 200)
+    trimmed = []
+    for chunk in chunks:
+        content = chunk["content"]
+        if len(content) > per_chunk_budget:
+            content = content[:per_chunk_budget] + "\n...[truncated]"
+        trimmed.append(content)
+
+    return "\n\n".join(trimmed)
 
 def generate_repository_summary(chunks):
     """
@@ -8,7 +33,7 @@ def generate_repository_summary(chunks):
     """
 
     # Combine chunk contents
-    context = "\n\n".join(chunk["content"] for chunk in chunks)
+    context = _condense_chunks(chunks)
 
     prompt = f"""
 You are an expert software engineer.
@@ -90,7 +115,7 @@ Repository Content:
 {context}
 """
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
         messages=[
             {
                 "role": "system",
